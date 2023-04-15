@@ -12,7 +12,7 @@ from training.reweighting import weight_learner
 from training.schedule import lr_setter
 import os
 import datetime
-
+import re
 class Go_training():
     def __init__(self,model,device,args,feature_size = 2):
         self.args = args
@@ -28,7 +28,7 @@ class Go_training():
         self.loss         = nn.MSELoss()
         self.save_log_path = "./log"
         now_time = datetime.datetime.today()
-        self.save_log_path += str(now_time)
+        self.save_log_path += "-".join( re.split(":|\.|\s",str(now_time))[:-1]  )
         self.initLogF()
         self.data_set_name = ""
         # self.loss         = nn.KLDivLoss(reduction='batchmean') # KL 散度可用于衡量不同的连续分布之间的距离, 在连续的输出分布的空间上(离散采样)上进行直接回归时
