@@ -167,8 +167,9 @@ class Go_training():
     
     def save_model(self):
         "保存模型"
-        torch.save(self.network.cpu(), 'model/GRU_net.pkl')
-        model = torch.load('model/GRU_net.pkl') 
+        torch.save(self.network.cpu(), 'model/{}.pkl'.format(self.args.arch))
+        model = torch.load('model/{}.pkl'.format(self.args.arch)) 
+        print("model saved and loaded")
 
 
     def evaluate_accuracy(self,data_iter):
