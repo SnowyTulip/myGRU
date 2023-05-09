@@ -34,6 +34,11 @@ color:#000000;
 font-family:"Monaco";
 border-radius: 5px;
 '''
+Font_back = '''
+background:#00f0a0;
+font-family:"Monaco";
+border-radius: 5px;
+'''
 Font_cob = '''
 background:#DDA0DD;
 font-size:20px;
@@ -86,6 +91,8 @@ border-radius: 4px;
 margin:0px;
 padding:0px;
 border:2px;
+font-family:"Monaco";
+hover{background:#00bfaf;}
 
 }
 QPushButton:hover{background:#00bfff;}
@@ -109,17 +116,16 @@ imgLable = '''
 }
 '''
 QlineEdit = '''
-QLineEdit
-{
+QLineEdit{
 border:1px solid rgb(180, 180, 180);
 background: rgb(230,230,230);
 border-radius: 4px;
+font-family:"Monaco";
 }
-QLineEdit::hover
-{
-        color:green
-        border-color:rgb(50,480,40);
-        background-color:green;
+QLineEdit::hover{
+color:green
+border-color:rgb(50,480,40);
+background-color:green;
 }
 
 '''

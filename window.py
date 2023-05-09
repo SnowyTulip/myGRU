@@ -10,6 +10,7 @@ from utilis.data_phm import DataSet
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FC
 import stylesheet
+import database
 class MainUI(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -17,6 +18,7 @@ class MainUI(QMainWindow):
         self.image_dir = "myGRU/images/"
         self.data_set_name = 'phm_data_Z5'
         self.model_name    = 'LSTM_with_table_5.pkl'
+        self.database = database.db_dig()
         self.initModelD()
         self.initPaint()
         self.initUI_Tool()
@@ -81,14 +83,17 @@ class MainUI(QMainWindow):
         #container1
         Lay1 = QVBoxLayout()
         self.Container1.setLayout(Lay1)
+
         self.Name_Lable = QLabel("基于稳定学习的\n轴承寿命\n预测系统")
         # self.Name_Lable.setPixmap(QPixmap(self.image_dir+ "Name.png"))
         self.Name_Lable.setScaledContents(True)
         self.Name_Lable.setStyleSheet(stylesheet.Name)
+        self.database = database.db_dig()
+
         self.LOGO_Lable = QLabel()
         self.LOGO_Lable.setPixmap(QPixmap(self.image_dir+ "Gear.png"))
         # self.LOGO_Lable.setScaledContents(True)
-        Lay1.addWidget(self.Name_Lable)
+        Lay1.addWidget(self.database)
         Lay1.addWidget(self.LOGO_Lable)
         
         #containner2 中间部分设计
@@ -128,6 +133,13 @@ class MainUI(QMainWindow):
         self.Normlize_cob = QComboBox()
         self.Normlize_cob.addItems(["Z-Scores","Min-Max Methoh"])
         self.Normlize_cob.setStyleSheet(stylesheet.Font_cob)
+        #绘图步长选择 默认为20
+        self.step_Lable = QLabel("step-Select")
+        self.step_Lable.setStyleSheet(stylesheet.Font)
+        self.step_cob = QComboBox()
+        self.step_cob.addItems([f"{i}" for i in range(2,20,2)] )
+        self.step_cob.setStyleSheet(stylesheet.Font_cob)
+        self.step_cob.currentIndexChanged.connect(self.step_change)
         #日志文本框
         self.Log_Text = QTextEdit()
         self.Log_Text.setCurrentFont(QFont('Monaco'))
@@ -145,6 +157,9 @@ class MainUI(QMainWindow):
 
         Lay2.addWidget(self.Normlize_Lable)
         Lay2.addWidget(self.Normlize_cob)
+
+        Lay2.addWidget(self.step_Lable)
+        Lay2.addWidget(self.step_cob)
         
         Lay2.addWidget(self.Log_Text)
         
@@ -188,11 +203,42 @@ class MainUI(QMainWindow):
         # refresh.triggered.connect(self.refresh)
         setup  = QAction(QIcon(self.icon_dir + "setup1.png"),"设置模型",self)
         toolbar.addAction(setup)
-        # setup.triggered.connect(self.setup)
-        output = QAction(QIcon(self.icon_dir + "output.png"),"输出结果",self)
+        #连接数据库
+        database = QAction(QIcon(self.icon_dir + "database.png"),"连接数据库",self)
+        toolbar.addAction(database)
+        database.triggered.connect(self.connect_database)
+
+        output = QAction(QIcon(self.icon_dir + "output.png"),"上传日志",self)
         toolbar.addAction(output)
+        output.triggered.connect(self.update_Record) # 上传日志需要多个类进行配合
         toolbar.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
+
+        datasets = QAction(QIcon(self.icon_dir + "download.png"),"获取数据集",self)
+        toolbar.addAction(datasets)
+        datasets.triggered.connect(self.download)
+
+        disconnect = QAction(QIcon(self.icon_dir + "no.png"),"断开连接",self)
+        toolbar.addAction(disconnect)
+        disconnect.triggered.connect(self.disconnect_db)
+
+    def update_Record(self):
+        self.database.update_record()
     
+    def step_change(self):
+        self.step = int(self.step_cob.currentText())
+    
+    def disconnect_db(self):
+        self.database.disconnect()
+
+    def download(self):
+        '''下载数据库中的数据文件'''
+        dig = QMessageBox.information(self,"数据集", f"下载数据集:{self.data_set_name}",QMessageBox.Yes | QMessageBox.No,QMessageBox.Yes)
+            
+    def connect_database(self):
+        ''''''
+        self.database.connect_db()
+        print("database")
+
     def bear_name_change(self):
         self.bear_name = self.bear_names[self.bear_name_cob.currentIndex()]
     
