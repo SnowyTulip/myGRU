@@ -11,9 +11,13 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FC
 import stylesheet
 import database
+from threading import Thread
 class MainUI(QMainWindow):
+    _paintOver = pyqtSignal(str)
     def __init__(self):
         super().__init__()
+        self._paintOver.connect(self.paintOver)
+        self.runpaint = True
         self.icon_dir = "myGRU/IconsBase/"
         self.image_dir = "myGRU/images/"
         self.data_set_name = 'phm_data_Z5'
@@ -28,14 +32,15 @@ class MainUI(QMainWindow):
         #进行一次预测
         self.runPredict()
         #绘制
-        self.runPaint_Data()
+        self.runPaint_Data_t()
         self.runPaint_RUL()
 
     def initModelD(self):
         self.model = torch.load('model/'+self.model_name) 
         self.dataset = DataSet.load_dataset(self.data_set_name)
-        self.step = 20         # 数据的步长
+        self.step = 15         # 数据的步长
         self.data       = np.array([]) # 数据
+        self.fulldata   = np.array([])
         self.Real_RUL   = np.array([]) # 剩余寿命 np.array
         self.Pre_RUL    = np.array([]) # 预测寿命
         self.bear_name = 'Bearing1_1' # 当前预测的轴承名称
@@ -101,8 +106,8 @@ class MainUI(QMainWindow):
         self.Container2.setLayout(Lay2)
         # self.test1 = QLabel("按钮")
         # self.test2 = QLabel("选择数据集的下滑commbox")
-        self.dataset_Label = QLabel("Dataset-Select")
-        self.dataset_Label.setStyleSheet(stylesheet.Font)
+        self.dataset_Label = QLabel("选择数据集")
+        self.dataset_Label.setStyleSheet(stylesheet.Font_zh)
         # 数据集选择
         self.dataset_cob = QComboBox()
         self.dataset_cob.addItems(["phm_data_Z5"])
@@ -111,8 +116,8 @@ class MainUI(QMainWindow):
         #步长设置
 
         #轴承名称设置
-        self.bear_name_Label = QLabel("Gear-Name-Select")
-        self.bear_name_Label.setStyleSheet(stylesheet.Font)
+        self.bear_name_Label = QLabel("轴承名称选择")
+        self.bear_name_Label.setStyleSheet(stylesheet.Font_zh)
         self.bear_name_cob = QComboBox()
         self.bear_name_cob.addItems(self.bear_names)
         #这里添加槽函数，当cob变化的时候self.bear_name也要变化
@@ -120,24 +125,24 @@ class MainUI(QMainWindow):
         self.bear_name_cob.setStyleSheet(stylesheet.Font_cob)
 
         #模型名称选择设置
-        self.model_Label = QLabel("Model-Select")
-        self.model_Label.setStyleSheet(stylesheet.Font)
+        self.model_Label = QLabel("模型选择")
+        self.model_Label.setStyleSheet(stylesheet.Font_zh)
         self.model_cob = QComboBox()
         self.model_cob.addItems(["LSTM_with_table_5.pkl","LSTM_with_table_10.pkl"])
         #这里是需要绑定槽函数的，但是要考虑绑定之后，会不会引起卡顿，因此要选择
         self.model_cob.currentIndexChanged.connect(self.model_change)
         self.model_cob.setStyleSheet(stylesheet.Font_cob)
         #数据归一化
-        self.Normlize_Lable = QLabel("Normlize-Select")
-        self.Normlize_Lable.setStyleSheet(stylesheet.Font)
+        self.Normlize_Lable = QLabel("数据归一化")
+        self.Normlize_Lable.setStyleSheet(stylesheet.Font_zh)
         self.Normlize_cob = QComboBox()
         self.Normlize_cob.addItems(["Z-Scores","Min-Max Methoh"])
         self.Normlize_cob.setStyleSheet(stylesheet.Font_cob)
         #绘图步长选择 默认为20
-        self.step_Lable = QLabel("step-Select")
-        self.step_Lable.setStyleSheet(stylesheet.Font)
+        self.step_Lable = QLabel("绘制步长")
+        self.step_Lable.setStyleSheet(stylesheet.Font_zh)
         self.step_cob = QComboBox()
-        self.step_cob.addItems([f"{i}" for i in range(2,20,2)] )
+        self.step_cob.addItems([f"{i}" for i in range(1,40,2)] )
         self.step_cob.setStyleSheet(stylesheet.Font_cob)
         self.step_cob.currentIndexChanged.connect(self.step_change)
         #日志文本框
@@ -198,9 +203,9 @@ class MainUI(QMainWindow):
         run = QAction(QIcon(self.icon_dir + "dispaly.png"),"启动预测",self)################
         toolbar.addAction(run)
         run.triggered.connect(self.runModel)
-        refresh = QAction(QIcon(self.icon_dir + "flush.png"),"重新加载",self)###############
+        refresh = QAction(QIcon(self.icon_dir + "flush.png"),"重新绘制",self)###############
         toolbar.addAction(refresh)
-        # refresh.triggered.connect(self.refresh)
+        refresh.triggered.connect(self.runPaint_Data_step_t)
         setup  = QAction(QIcon(self.icon_dir + "setup1.png"),"设置模型",self)
         toolbar.addAction(setup)
         #连接数据库
@@ -241,9 +246,11 @@ class MainUI(QMainWindow):
 
     def bear_name_change(self):
         self.bear_name = self.bear_names[self.bear_name_cob.currentIndex()]
+        self.get_bear_data()
+        self.runPaint_Data_t()
     
     def model_change(self):
-        self.model_name = self.bear_name_cob.currentText()
+        self.model_name = self.model_cob.currentText()
         self.model = torch.load('model/'+self.model_name) 
 
     def get_bear_data(self):
@@ -257,20 +264,59 @@ class MainUI(QMainWindow):
                 'Bearing3_3']
         data,rul = self.dataset.get_data(self.bear_name,is_percent = True)
         data,rul = np.array(data),np.array(rul)
+        self.fulldata = data
         self.data = data[::self.step]
         self.Real_RUL  = rul [::self.step]
         # return data,rul
 
+    def runPaint_Data_t(self):
+        self.runpaint = False
+        self.Log_Text.setTextColor(QColor("red"))
+        self.Log_Text.setText(f"Painting {self.bear_name},please wait...")
+        t1 = Thread(target=self.runPaint_Data)
+        t1.setDaemon(True)
+        t1.start()
+
+    def runPaint_Data_step_t(self):
+        if self.runpaint:
+            self.Log_Text.setTextColor(QColor("red"))
+            self.Log_Text.setText(f"Painting {self.bear_name},please wait...")
+            t1 = Thread(target=self.runPaint_Data_step)
+            t1.setDaemon(True)
+            t1.start()
+        
+
     def runPaint_Data(self):
         '''根据数据绘制振动数据图像,'''
+        self.runpaint = False
         if self.data.shape[0] == 0:
             self.get_bear_data()
         self.ax_data.cla()
-        self.ax_data.plot(self.data)
+        self.ax_data.plot(self.fulldata)
+        print(self.fulldata.shape)
         self.ax_data.set_title("Vibration Signal")
         # self.ax_data.legend()
         self.ax_data.grid()
         self.canvas_data.draw()
+        self._paintOver.emit("")
+    
+    def runPaint_Data_step(self):
+        self.get_bear_data()
+        self.ax_data.cla()
+        paintdata = self.data.flatten()
+        self.ax_data.plot(paintdata)
+        print(paintdata.shape)
+        self.ax_data.set_title("Vibration Signal")
+        # self.ax_data.legend()
+        self.ax_data.grid()
+        self.canvas_data.draw()
+        self._paintOver.emit("")
+    
+    def paintOver(self):
+        self.Log_Text.setTextColor(QColor("black"))
+        self.Log_Text.setText(f"model:{self.model_name}\ndataset:{self.data_set_name}\n" + f"painted:{self.bear_name}!")
+        self.runpaint = True
+        
 
     def runPaint_RUL(self):
         '''根据数据绘制振动数据图像,'''

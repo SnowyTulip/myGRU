@@ -34,6 +34,12 @@ color:#000000;
 font-family:"Monaco";
 border-radius: 5px;
 '''
+Font_zh = '''
+font-size:20px;
+color:#000000;
+font-family:"SimHei";
+border-radius: 5px;
+'''
 Font_back = '''
 background:#00f0a0;
 font-family:"Monaco";
